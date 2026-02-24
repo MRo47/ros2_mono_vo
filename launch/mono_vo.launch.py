@@ -50,12 +50,12 @@ def generate_launch_description():
     # Input topic arguments
     declared_arguments.append(DeclareLaunchArgument(
         'image_topic',
-        default_value='/camera/image_rect',
+        default_value='/cam_1/image_raw',
         description='Input topic for the rectified camera image.'
     ))
     declared_arguments.append(DeclareLaunchArgument(
         'cam_info_topic',
-        default_value='/camera/camera_info',
+        default_value='/cam_1/camera_info',
         description='Input topic for the camera info.'
     ))
 
@@ -94,8 +94,8 @@ def generate_launch_description():
         # Remap topics based on launch arguments
         remappings=[
             # Subscriptions
-            ('/camera/image_rect', LaunchConfiguration('image_topic')),
-            ('/camera/camera_info', LaunchConfiguration('cam_info_topic')),
+            ('/cam_1/image_raw', LaunchConfiguration('image_topic')),
+            ('/cam_1/camera_info', LaunchConfiguration('cam_info_topic')),
             # Publications
             ('/odom', LaunchConfiguration('odom_topic')),
             ('/pointcloud', LaunchConfiguration('pointcloud_topic')),

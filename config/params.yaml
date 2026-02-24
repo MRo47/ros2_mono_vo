@@ -2,23 +2,25 @@ mono_vo:
   ros__parameters:
     # Initializer Parameters
     initializer:
-      occupancy_grid_div: 50
-      kp_distribution_thresh: 0.5
+      occupancy_grid_div: 64  #50
+      kp_distribution_thresh: 0.12    #0.5
       lowes_distance_ratio: 0.7
-      min_matches_for_init: 100
-      ransac_reproj_thresh: 1.0
-      f_inlier_thresh: 0.5
+      min_matches_for_init: 60 #100
+      ransac_reproj_thresh: 2.0 #1.0
+      f_inlier_thresh: 0.35 #0.5
       model_score_thresh: 0.56
 
     # Tracker Parameters
     tracker:
-      tracking_error_thresh: 30.0
-      min_observations_before_triangulation: 100
-      min_tracked_points: 10
-      max_tracking_after_keyframe: 10
-      max_rotation_from_keyframe: 0.261799388 # 15 degrees
-      max_translation_from_keyframe: 1.0
-      ransac_reproj_thresh: 1.0
+      tracking_error_thresh: 70.0 #30.0
+      min_observations_before_triangulation: 250 #100
+      min_tracked_points: 8 #10
+      max_tracking_after_keyframe: 15
+      max_rotation_from_keyframe: 0.35   # 15 degrees
+      max_translation_from_keyframe: 2.0
+      ransac_reproj_thresh: 2.5 #1.0
       model_score_thresh: 0.85
-      f_inlier_thresh: 0.5
-      lowes_distance_ratio: 0.7
+      f_inlier_thresh: 0.35
+      lowes_distance_ratio: 0.75    
+
+

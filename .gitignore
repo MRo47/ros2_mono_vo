@@ -1,1 +1,28 @@
 .vscode
+
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Precompiled headers / generated
+*.gch
+*.pch
+*.o
+*.obj
+*.so
+*.a
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
