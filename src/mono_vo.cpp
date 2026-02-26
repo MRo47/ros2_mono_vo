@@ -197,31 +197,31 @@ void MonoVO::image_callback(
   std::optional<cv::Affine3d> pose_wc =
       tracker_.update(frame, K_.value(), d_.value());
 
-  cv::Affine3d T_odom_cam = pose_wc.value(); ///-----------------new lines
-  cv::Affine3d T_cam_base = T_base_cam_.inv();
-  cv::Affine3d T_odom_base = T_odom_cam * T_cam_base;
+  // cv::Affine3d T_odom_cam = pose_wc.value(); ///-----------------new lines
+  // cv::Affine3d T_cam_base = T_base_cam_.inv();
+  // cv::Affine3d T_odom_base = T_odom_cam * T_cam_base;
 
-  // std_msgs::msg::Header header;
-  // header.stamp = msg->header.stamp;
-  // header.frame_id = odom_frame_;
+  // // std_msgs::msg::Header header;
+  // // header.stamp = msg->header.stamp;
+  // // header.frame_id = odom_frame_;
 
-  nav_msgs::msg::Odometry odom_msg =
-      utils::affine3d_to_odometry_msg(T_odom_base, header, base_frame_);
-  odometry_pub_->publish(odom_msg);
+  // nav_msgs::msg::Odometry odom_msg =
+  //     utils::affine3d_to_odometry_msg(T_odom_base, header, base_frame_);
+  // odometry_pub_->publish(odom_msg);
 
-  geometry_msgs::msg::TransformStamped tf_msg =
-      utils::affine3d_to_transform_stamped_msg(T_odom_base, header,
-                                               base_frame_);
-  tf_broadcaster_->sendTransform(tf_msg);
-
+  // geometry_msgs::msg::TransformStamped tf_msg =
+  //     utils::affine3d_to_transform_stamped_msg(T_odom_base, header,
+  //                                              base_frame_);
+  // tf_broadcaster_->sendTransform(tf_msg);
+ 
   //-------------------upto here-------------------------------
 
   if (tracker_.get_state() == TrackerState::LOST) {
-    RCLCPP_WARN(this->get_logger(),
-                "Tracker Lost -> clearing path (to avoid RViz spikes)");
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                         "Tracker Lost -> resetting and reinitializing");
     path_msg_.poses.clear();
-    // RCLCPP_INFO(this->get_logger(), "Tracker Lost");
-    // TODO (Myron): Add resetting logic
+    tracker_.reset();
+    initializer_.reset();
     return;
   }
 
@@ -244,22 +244,23 @@ void MonoVO::image_callback(
       T_odom_base = T_odom_cam * T_cam_base;
     }
 
-    // clamp to ground (SE2)
-    auto clamp_to_se2 = [this](const cv::Affine3d &T) {
+    // clamp to ground plane: keep x (lateral), z (forward), yaw (around y-axis)
+    // camera convention: z-forward, x-right, y-down → fix y=0 for flat ground
+    auto clamp_to_se2 = [](const cv::Affine3d &T) {
       cv::Vec3d t = T.translation();
       cv::Matx33d R = T.rotation();
-      double yaw = std::atan2(R(1, 0), R(0, 0));
 
-      cv::Matx33d Rz(std::cos(yaw), -std::sin(yaw), 0, std::sin(yaw),
-                     std::cos(yaw), 0, 0, 0, 1);
+      // yaw = rotation around y-axis (z-forward camera convention)
+      double yaw = std::atan2(-R(2, 0), R(0, 0));
 
-      if (!z0_set_) {
-        z0_ = t[2];
-        z0_set_ = true;
-      }
-      t[2] = z0_; // or 0.0
+      cv::Matx33d Ry(std::cos(yaw),  0, std::sin(yaw),
+                     0,              1, 0,
+                     -std::sin(yaw), 0, std::cos(yaw));
 
-      return cv::Affine3d(Rz, t);
+      // lock vertical (y) to zero; keep x (lateral) and z (forward)
+      t[1] = 0.0;
+
+      return cv::Affine3d(Ry, t);
     };
 
     T_odom_base = clamp_to_se2(T_odom_base);
@@ -276,17 +277,21 @@ void MonoVO::image_callback(
                                                            base_frame_);
     tf_broadcaster_->sendTransform(tf_msg);
 
-    // path
+    // path (cap length to prevent unbounded memory growth)
     path_msg_.header = header;
     geometry_msgs::msg::PoseStamped ps;
     ps.header = header;
     ps.pose = odom_msg.pose.pose;
     path_msg_.poses.push_back(ps);
+    constexpr size_t kMaxPathPoses = 500;
+    if (path_msg_.poses.size() > kMaxPathPoses) {
+      path_msg_.poses.erase(path_msg_.poses.begin());
+    }
     path_pub_->publish(path_msg_);
 
-    // pointcloud throttle (optional)
+    // pointcloud throttle - publish every 30 frames to limit memory/CPU
     static int pc_counter = 0;
-    if (++pc_counter % 5 == 0) {
+    if (++pc_counter % 30 == 0) {
       auto points = map_->get_landmark_points();
       auto pc_msg = utils::points3d_to_pointcloud_msg(points, header);
       pointcloud_pub_->publish(pc_msg);

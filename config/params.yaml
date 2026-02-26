@@ -13,7 +13,7 @@ mono_vo:
     # Tracker Parameters
     tracker:
       tracking_error_thresh: 70.0 #30.0
-      min_observations_before_triangulation: 250 #100
+      min_observations_before_triangulation: 100 #100
       min_tracked_points: 8 #10
       max_tracking_after_keyframe: 15
       max_rotation_from_keyframe: 0.35   # 15 degrees

@@ -44,8 +44,8 @@ std::vector<cv::Point2f> KeyFrame::get_points_2d(ObservationFilter filter_type) 
   for (const auto & obs : observations) {
     if (
       filter_type == ObservationFilter::ALL ||
-      filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1 ||
-      filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1) {
+      (filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1) ||
+      (filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1)) {
       points_2d.push_back(obs.keypoint.pt);
     }
   }
@@ -100,8 +100,8 @@ std::vector<Observation> KeyFrame::get_observations(ObservationFilter filter_typ
   valid_obs.reserve(observations.size());
   for (const auto & obs : observations) {
     if (
-      filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1 ||
-      filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1) {
+      (filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1) ||
+      (filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1)) {
       valid_obs.push_back(obs);
     }
   }
