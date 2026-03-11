@@ -82,8 +82,8 @@ Frame Tracker::track_frame_with_optical_flow(const cv::Mat & new_image)
   cv::Mat img_matches = utils::draw_matched_points(
     prev_frame_.image, new_frame.image, prev_pts_2d_filtered,
     new_frame.get_points_2d(ObservationFilter::ALL));
-  cv::imshow("Matches", img_matches);
-  cv::waitKey(1);
+  // cv::imshow("Matches", img_matches); -----------changes commented these lines
+  // cv::waitKey(1);
 
   new_frame.is_tracked = true;
   return new_frame;

@@ -2,6 +2,9 @@
 
 #include "mono_vo/ros_parameter_handler.hpp"
 
+#include <cmath>     
+#include <algorithm>
+
 namespace mono_vo
 {
 
@@ -49,30 +52,84 @@ bool Initializer::is_initalized() { return state_ == State::INITIALIZED; }
 
 void Initializer::reset() { state_ = State::OBTAINING_REF; }
 
-bool Initializer::good_keypoint_distribution(const Frame & frame)
-{
-  RCLCPP_INFO(logger_, "totals kps: %ld", frame.observations.size());
+//----------------------------------changed good initializer----------------------------------------
 
-  // check distribution in a grid across the image
-  cv::Mat grid = cv::Mat::zeros(
-    frame.image.rows / occupancy_grid_div_, frame.image.cols / occupancy_grid_div_, CV_8U);
+bool Initializer::good_keypoint_distribution(const Frame& frame)
+{
+  if (frame.image.empty()) {
+    RCLCPP_WARN(logger_, "good_dist: empty image");
+    return false;
+  }
+
+  if (occupancy_grid_div_ <= 0) {
+    RCLCPP_WARN(logger_, "good_dist: occupancy_grid_div_ must be > 0 (got %d)", occupancy_grid_div_);
+    return false;
+  }
+
+  const int H = frame.image.rows;
+  const int W = frame.image.cols;
+
+  const int grid_rows = std::max(1, H / occupancy_grid_div_);
+  const int grid_cols = std::max(1, W / occupancy_grid_div_);
+  cv::Mat grid = cv::Mat::zeros(grid_rows, grid_cols, CV_8U);
+
   int occupied_cells = 0;
-  for (auto & obs : frame.observations) {
-    int r = obs.keypoint.pt.y / occupancy_grid_div_, c = obs.keypoint.pt.x / occupancy_grid_div_;
+  int oob = 0;
+
+  for (const auto& obs : frame.observations) {
+    const int r = (int)obs.keypoint.pt.y / occupancy_grid_div_;
+    const int c = (int)obs.keypoint.pt.x / occupancy_grid_div_;
+
+    if (r < 0 || r >= grid_rows || c < 0 || c >= grid_cols) { oob++; continue; }
+
     if (!grid.at<uchar>(r, c)) {
       grid.at<uchar>(r, c) = 1;
       occupied_cells++;
     }
   }
-  auto total_cells = grid.cols * grid.rows;
-  RCLCPP_INFO(logger_, "occupied cells: %d total cells: %d", occupied_cells, total_cells);
-  auto occupancy = static_cast<double>(occupied_cells) / total_cells;
-  RCLCPP_INFO(logger_, "occupancy: %lf", occupancy);
-  if (occupancy > kp_distribution_thresh_) {
-    return true;
-  }
-  return false;
+
+  const int total_cells = grid_rows * grid_cols;
+  const double occupancy = (double)occupied_cells / (double)total_cells;
+
+  RCLCPP_INFO(logger_,
+    "good_dist: obs=%zu grid=%dx%d occ=%d/%d (%.3f) oob=%d div=%d thresh=%.3f",
+    frame.observations.size(), grid_rows, grid_cols,
+    occupied_cells, total_cells, occupancy, oob,
+    occupancy_grid_div_, kp_distribution_thresh_);
+
+  return occupancy > kp_distribution_thresh_;
 }
+//-----------------------------------------------------------------------------------------------
+
+//-------------------------------main code -----------------------------------------------------
+
+// bool Initializer::good_keypoint_distribution(const Frame & frame)
+// {
+//   RCLCPP_INFO(logger_, "totals kps: %ld", frame.observations.size());
+
+//   // check distribution in a grid across the image
+//   cv::Mat grid = cv::Mat::zeros(
+//     frame.image.rows / occupancy_grid_div_, frame.image.cols / occupancy_grid_div_, CV_8U);
+//   int occupied_cells = 0;
+//   for (auto & obs : frame.observations) {
+//     int r = obs.keypoint.pt.y / occupancy_grid_div_, c = obs.keypoint.pt.x / occupancy_grid_div_;
+//     if (!grid.at<uchar>(r, c)) {
+//       grid.at<uchar>(r, c) = 1;
+//       occupied_cells++;
+//     }
+//   }
+//   auto total_cells = grid.cols * grid.rows;
+//   RCLCPP_INFO(logger_, "occupied cells: %d total cells: %d", occupied_cells, total_cells);
+//   auto occupancy = static_cast<double>(occupied_cells) / total_cells;
+//   RCLCPP_INFO(logger_, "occupancy: %lf", occupancy);
+//   if (occupancy > kp_distribution_thresh_) {
+//     return true;
+//   }
+//   return false;
+// }
+
+//-------------------------------------------------------------------------------------------------------
+
 
 bool Initializer::check_parallax(
   const std::vector<cv::Point2f> & pts1, const std::vector<cv::Point2f> & pts2)
@@ -170,9 +227,17 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
 
   Frame cur_frame{frame};
   cur_frame.extract_observations(feature_processor_);
+  // RCLCPP_WARN(logger_, "INIT: kp=%zu desc=%d x %d",     //extra added line
+  //           cur_frame.observations.size(),
+  //           cur_frame.get_descriptors().rows,
+  //           cur_frame.get_descriptors().cols);
 
   if (state_ == State::OBTAINING_REF) {
-    if (!good_keypoint_distribution(cur_frame)) return std::nullopt;
+    
+    if (!good_keypoint_distribution(cur_frame)) {
+      RCLCPP_WARN(logger_, "INIT: ref rejected: bad keypoint distribution"); //added extra line ------main problem?
+    return std::nullopt;
+    }
     RCLCPP_INFO(logger_, "found good reference frame");
     ref_frame_ = std::move(cur_frame);
     state_ = State::INITIALIZING;
@@ -303,5 +368,5 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
   }
   return std::nullopt;
 }
-
-}  // namespace mono_vo
+}
+ // namespace mono_vo

@@ -106,8 +106,8 @@ private:
   rclcpp::Logger logger_;
   State state_;
   Frame ref_frame_;
-  int occupancy_grid_div_ = 50;             // NxN grid size to check for good keypoint distribution
-  double kp_distribution_thresh_ = 0.5;     // threshold for good keypoint distribution
+  int occupancy_grid_div_ = 64;             // NxN grid size to check for good keypoint distribution
+  double kp_distribution_thresh_ = 0.15;     // threshold for good keypoint distribution
   double lowes_distance_ratio_ = 0.7;       // Lowe's distance ratio for finding good matches
   int64_t min_matches_for_init_ = 100;      // minimum number of matches for initialization
   double ransac_reproj_thresh_ = 1.0;       // px RANSAC threshold for fitting H/F model

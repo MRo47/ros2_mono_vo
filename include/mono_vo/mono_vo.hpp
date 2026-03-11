@@ -18,6 +18,9 @@
 #include "mono_vo/map.hpp"
 #include "mono_vo/tracker.hpp"
 
+#include <opencv2/core.hpp>
+#include <opencv2/calib3d.hpp>
+
 namespace mono_vo
 {
 
@@ -41,6 +44,20 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  // Frames
+  std::string odom_frame_{"odom"};
+  std::string base_frame_{"base_link"};
+  std::string cam_frame_{"camera"};
+
+  // Extrinsic base->camera
+  cv::Affine3d T_base_cam_{cv::Affine3d::Identity()};
+  bool has_extrinsic_{false};
+
+  // Optional: for SE2 clamp using initial z
+  double z0_{0.0};
+  bool z0_set_{false};
+  
+  //------------------new improved lines------------------------------------------------
 
   Map::Ptr map_;
   FeatureProcessor::Ptr feature_processor_;
